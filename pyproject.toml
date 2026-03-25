@@ -1,0 +1,23 @@
+[project]
+name = "rnd320-service"
+version = "0.1.0"
+description = "REST service for RND320 / Korad KEL103 electronic DC load"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "py-kelctl>=0.3",
+    "pyserial>=3.5",
+]
+
+[project.scripts]
+rnd320-service = "rnd320_service.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rnd320_service"]

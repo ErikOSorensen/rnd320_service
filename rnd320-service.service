@@ -1,0 +1,14 @@
+[Unit]
+Description=RND320 DC Load REST Service
+After=network.target
+
+[Service]
+Type=simple
+User=rnd320
+EnvironmentFile=-/etc/rnd320-service.env
+ExecStart=/usr/local/bin/rnd320-service
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
