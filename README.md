@@ -18,20 +18,21 @@ Built with [FastAPI](https://fastapi.tiangolo.com/) and [py-kelctl](https://gith
    - [4.6 Function / Mode](#46-function--mode)
    - [4.7 Settings](#47-settings)
    - [4.8 Battery Test](#48-battery-test)
-5. [Raspberry Pi Deployment](#5-raspberry-pi-deployment)
-   - [5.1 Install uv and the service](#51-install-uv-and-the-service)
-   - [5.2 Create a service user](#52-create-a-service-user)
-   - [5.3 Configure the environment](#53-configure-the-environment)
-   - [5.4 Install and enable the systemd service](#54-install-and-enable-the-systemd-service)
-   - [5.5 Verify](#55-verify)
-   - [5.6 USB Device Permissions](#56-usb-device-permissions)
-   - [5.7 Disable USB Autosuspend](#57-disable-usb-autosuspend)
-   - [5.8 Static IP Address](#58-static-ip-address)
-   - [5.9 Reducing SD Card Wear](#59-reducing-sd-card-wear)
-   - [5.10 Firewall](#510-firewall)
-   - [5.11 Recommended OS](#511-recommended-os)
-6. [Development](#6-development)
-7. [License](#7-license)
+5. [MQTT Telemetry](#5-mqtt-telemetry)
+6. [Raspberry Pi Deployment](#6-raspberry-pi-deployment)
+   - [6.1 Install uv and the service](#61-install-uv-and-the-service)
+   - [6.2 Create a service user](#62-create-a-service-user)
+   - [6.3 Configure the environment](#63-configure-the-environment)
+   - [6.4 Install and enable the systemd service](#64-install-and-enable-the-systemd-service)
+   - [6.5 Verify](#65-verify)
+   - [6.6 USB Device Permissions](#66-usb-device-permissions)
+   - [6.7 Disable USB Autosuspend](#67-disable-usb-autosuspend)
+   - [6.8 Static IP Address](#68-static-ip-address)
+   - [6.9 Reducing SD Card Wear](#69-reducing-sd-card-wear)
+   - [6.10 Firewall](#610-firewall)
+   - [6.11 Recommended OS](#611-recommended-os)
+7. [Development](#7-development)
+8. [License](#8-license)
 
 ## 1. Requirements
 
@@ -185,9 +186,57 @@ Example status response (test in progress):
 
 When the device reaches a cutoff condition it turns off the input and `running` becomes `false`.
 
-## 5. Raspberry Pi Deployment
+## 5. MQTT Telemetry
 
-### 5.1 Install uv and the service
+The service can optionally publish measurements to an MQTT broker. This is useful for logging, dashboards (e.g. Grafana via Telegraf), or integration with home automation systems. MQTT keeps telemetry decoupled from the REST API — any number of subscribers can independently log, visualize, or alert on the data.
+
+### 5.1 Installation
+
+MQTT support is an optional dependency:
+
+```bash
+uv sync --extra mqtt
+```
+
+### 5.2 Configuration
+
+Set `RND320_MQTT_BROKER` to enable publishing. All other MQTT settings have sensible defaults:
+
+| Variable | Default | Description |
+|---|---|---|
+| `RND320_MQTT_BROKER` | *(unset — disabled)* | MQTT broker hostname or IP |
+| `RND320_MQTT_PORT` | `1883` | MQTT broker port |
+| `RND320_MQTT_TOPIC` | `rnd320/measurements` | Topic to publish to |
+| `RND320_MQTT_INTERVAL` | `1.0` | Publish interval in seconds |
+| `RND320_MQTT_USERNAME` | *(unset)* | Broker username (optional) |
+| `RND320_MQTT_PASSWORD` | *(unset)* | Broker password (optional) |
+
+### 5.3 Behavior
+
+- Publishing only occurs when the **load input is ON**. When the input is off, no messages are sent.
+- Each message is a JSON payload on the configured topic:
+
+```json
+{
+  "timestamp": "2026-03-25T14:30:00.123456+00:00",
+  "voltage": 12.05,
+  "current": 1.503,
+  "power": 18.12
+}
+```
+
+- The `timestamp` is the UTC time when the measurement was taken. Subscribers can use this or their own receive time depending on accuracy needs.
+- If the MQTT broker is unreachable at startup, the service logs an error and continues running — the REST API is unaffected.
+
+### 5.4 Example: subscribing with mosquitto
+
+```bash
+mosquitto_sub -h localhost -t rnd320/measurements
+```
+
+## 6. Raspberry Pi Deployment
+
+### 6.1 Install uv and the service
 
 ```bash
 # Install uv (if not already present)
@@ -200,7 +249,7 @@ cd rnd320-service
 sudo uv sync
 ```
 
-### 5.2 Create a service user
+### 6.2 Create a service user
 
 ```bash
 sudo useradd -r -s /sbin/nologin -G dialout rnd320
@@ -208,14 +257,14 @@ sudo useradd -r -s /sbin/nologin -G dialout rnd320
 
 The `dialout` group grants access to serial ports.
 
-### 5.3 Configure the environment
+### 6.3 Configure the environment
 
 ```bash
 sudo cp rnd320-service.env.example /etc/rnd320-service.env
 sudo nano /etc/rnd320-service.env
 ```
 
-### 5.4 Install and enable the systemd service
+### 6.4 Install and enable the systemd service
 
 Update `ExecStart` in the service file to match the installed path:
 
@@ -226,14 +275,14 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now rnd320-service
 ```
 
-### 5.5 Verify
+### 6.5 Verify
 
 ```bash
 sudo systemctl status rnd320-service
 curl http://localhost:8320/health
 ```
 
-### 5.6 USB Device Permissions
+### 6.6 USB Device Permissions
 
 If the service cannot open the serial port, ensure the device node is accessible. You can add a udev rule for consistent naming:
 
@@ -249,7 +298,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 Set `RND320_PORT=/dev/rnd320` in your environment file to use the stable symlink.
 
-### 5.7 Disable USB Autosuspend
+### 6.7 Disable USB Autosuspend
 
 Linux power management can suspend idle USB devices, which kills the serial connection. This is a common cause of the service losing contact with the device after a period of inactivity. Disable autosuspend for USB devices:
 
@@ -264,7 +313,7 @@ Alternatively, disable USB autosuspend globally via a kernel parameter. Add `usb
 ... rootwait usbcore.autosuspend=-1
 ```
 
-### 5.8 Static IP Address
+### 6.8 Static IP Address
 
 A service that other machines need to reach should have a predictable address. With NetworkManager (default on recent Raspberry Pi OS):
 
@@ -286,7 +335,7 @@ static routers=192.168.1.1
 static domain_name_servers=192.168.1.1
 ```
 
-### 5.9 Reducing SD Card Wear
+### 6.9 Reducing SD Card Wear
 
 A headless Pi running 24/7 can wear out an SD card through constant log writes. A few mitigations:
 
@@ -319,7 +368,7 @@ sudo journalctl --vacuum-size=50M
 # SystemMaxUse=50M
 ```
 
-### 5.10 Firewall
+### 6.10 Firewall
 
 If the Pi is on a shared network, restrict access to the service port:
 
@@ -331,11 +380,11 @@ sudo ufw allow 8320/tcp
 sudo ufw enable
 ```
 
-### 5.11 Recommended OS
+### 6.11 Recommended OS
 
 Raspberry Pi OS Lite (64-bit) is a good baseline — no desktop overhead, well-supported on Pi 3B. For an even leaner setup, DietPi or Alpine Linux are options, though they require more manual configuration.
 
-## 6. Development
+## 7. Development
 
 ```bash
 # Install dependencies
@@ -348,6 +397,6 @@ uv run rnd320-service
 # http://localhost:8320/docs
 ```
 
-## 7. License
+## 8. License
 
 MIT
