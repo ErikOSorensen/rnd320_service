@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from rnd320_service.config import settings
 from rnd320_service.device import device_manager
+from rnd320_service.mqtt import mqtt_publisher
 from rnd320_service.routes import battery, control, device, measurements, settings as settings_routes
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,9 @@ async def lifespan(app: FastAPI):
         device_manager.connect()
     except Exception:
         logger.exception("Failed to connect to device on startup")
+    mqtt_publisher.start()
     yield
+    mqtt_publisher.stop()
     device_manager.disconnect()
 
 

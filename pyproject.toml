@@ -12,6 +12,9 @@ dependencies = [
     "pyserial>=3.5",
 ]
 
+[project.optional-dependencies]
+mqtt = ["paho-mqtt>=2.0"]
+
 [project.scripts]
 rnd320-service = "rnd320_service.main:main"
 
