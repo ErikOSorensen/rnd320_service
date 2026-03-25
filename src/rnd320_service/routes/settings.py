@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
+from kelctl.kelerrors import ValueOutOfLimitError
+
 from rnd320_service.device import device_manager
 from rnd320_service.models import SettingsResponse, SettingsUpdate
 
@@ -29,6 +31,8 @@ def get_settings():
             trigger=_get_toggle(s.trigger),
             compensation=_get_toggle(s.compensation),
         )
+    except ValueOutOfLimitError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -72,6 +76,8 @@ def update_settings(update: SettingsUpdate):
             trigger=_get_toggle(s.trigger),
             compensation=_get_toggle(s.compensation),
         )
+    except ValueOutOfLimitError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:

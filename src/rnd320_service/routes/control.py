@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from kelctl.kelerrors import InvalidModeError, NoModeSetError, ValueOutOfLimitError
 from kelctl.kelenums import Mode
 
 from rnd320_service.device import device_manager
@@ -33,6 +34,8 @@ def get_input():
     try:
         state = device.input.get()
         return InputStateResponse(state=state.b)
+    except (ValueOutOfLimitError, NoModeSetError, InvalidModeError):
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -53,6 +56,8 @@ def set_input(request: InputStateRequest):
             device.input.off()
         current = device.input.get()
         return InputStateResponse(state=current.b)
+    except (ValueOutOfLimitError, NoModeSetError, InvalidModeError):
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -74,6 +79,8 @@ def get_setpoint():
             power=device.power,
             resistance=device.resistance,
         )
+    except (ValueOutOfLimitError, NoModeSetError, InvalidModeError):
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -103,6 +110,8 @@ def set_setpoint(request: SetpointRequest):
             power=device.power,
             resistance=device.resistance,
         )
+    except (ValueOutOfLimitError, NoModeSetError, InvalidModeError):
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -118,6 +127,8 @@ def get_function():
     try:
         func = device.function
         return FunctionResponse(function=func.value if func else None)
+    except (ValueOutOfLimitError, NoModeSetError, InvalidModeError):
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -131,6 +142,8 @@ def set_function(request: FunctionRequest):
         device.function = _MODE_MAP[request.function]
         func = device.function
         return FunctionResponse(function=func.value if func else None)
+    except (ValueOutOfLimitError, NoModeSetError, InvalidModeError):
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:

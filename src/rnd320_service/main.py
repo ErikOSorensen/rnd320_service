@@ -2,8 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from kelctl.kelerrors import InvalidModeError, NoModeSetError, ValueOutOfLimitError
 
 from rnd320_service.config import settings
 from rnd320_service.device import device_manager
@@ -48,6 +50,42 @@ app.include_router(measurements.router)
 app.include_router(control.router)
 app.include_router(settings_routes.router)
 app.include_router(battery.router)
+
+
+@app.exception_handler(ValueOutOfLimitError)
+async def value_out_of_limit_handler(request: Request, exc: ValueOutOfLimitError):
+    return JSONResponse(
+        status_code=400,
+        content={
+            "detail": f"Value {exc.value} exceeds device limit of {exc.limit}",
+        },
+    )
+
+
+@app.exception_handler(NoModeSetError)
+async def no_mode_set_handler(request: Request, exc: NoModeSetError):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": f"Mode '{exc.mode}' cannot be set directly"},
+    )
+
+
+@app.exception_handler(InvalidModeError)
+async def invalid_mode_handler(request: Request, exc: InvalidModeError):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": f"Invalid device mode: {exc.mode}"},
+    )
+
+
+@app.exception_handler(RuntimeError)
+async def runtime_error_handler(request: Request, exc: RuntimeError):
+    if "not connected" in str(exc).lower():
+        return JSONResponse(
+            status_code=503,
+            content={"detail": str(exc)},
+        )
+    raise exc
 
 
 @app.get("/health", tags=["health"])

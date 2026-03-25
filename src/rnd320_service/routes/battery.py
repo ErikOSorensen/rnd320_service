@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from kelctl.kelerrors import ValueOutOfLimitError
 from kelctl.kellists import BattList
 
 from rnd320_service.device import device_manager
@@ -28,6 +29,8 @@ def get_battery_config(slot: int):
             cutoff_capacity=batt.cutoff_capacity,
             cutoff_time=batt.cutoff_time,
         )
+    except ValueOutOfLimitError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -58,6 +61,8 @@ def set_battery_config(request: BatteryConfigRequest):
             cutoff_capacity=request.cutoff_capacity,
             cutoff_time=request.cutoff_time,
         )
+    except ValueOutOfLimitError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -81,6 +86,8 @@ def recall_battery_config(slot: int):
             cutoff_capacity=batt.cutoff_capacity,
             cutoff_time=batt.cutoff_time,
         )
+    except ValueOutOfLimitError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -103,6 +110,8 @@ def get_battery_status():
             function=func_str,
             running=running,
         )
+    except ValueOutOfLimitError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
