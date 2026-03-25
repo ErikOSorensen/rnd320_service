@@ -4,13 +4,42 @@ REST API service for controlling an RND320 / Korad KEL103 electronic DC load ove
 
 Built with [FastAPI](https://fastapi.tiangolo.com/) and [py-kelctl](https://github.com/vorbeiei/kelctl). Designed to run on a Raspberry Pi as a systemd service.
 
-## Requirements
+## Table of Contents
+
+1. [Requirements](#1-requirements)
+2. [Quick Start](#2-quick-start)
+3. [Configuration](#3-configuration)
+4. [API Reference](#4-api-reference)
+   - [4.1 Health](#41-health)
+   - [4.2 Device Info](#42-device-info)
+   - [4.3 Measurements](#43-measurements)
+   - [4.4 Input Control](#44-input-control)
+   - [4.5 Setpoint](#45-setpoint)
+   - [4.6 Function / Mode](#46-function--mode)
+   - [4.7 Settings](#47-settings)
+   - [4.8 Battery Test](#48-battery-test)
+5. [Raspberry Pi Deployment](#5-raspberry-pi-deployment)
+   - [5.1 Install uv and the service](#51-install-uv-and-the-service)
+   - [5.2 Create a service user](#52-create-a-service-user)
+   - [5.3 Configure the environment](#53-configure-the-environment)
+   - [5.4 Install and enable the systemd service](#54-install-and-enable-the-systemd-service)
+   - [5.5 Verify](#55-verify)
+   - [5.6 USB Device Permissions](#56-usb-device-permissions)
+   - [5.7 Disable USB Autosuspend](#57-disable-usb-autosuspend)
+   - [5.8 Static IP Address](#58-static-ip-address)
+   - [5.9 Reducing SD Card Wear](#59-reducing-sd-card-wear)
+   - [5.10 Firewall](#510-firewall)
+   - [5.11 Recommended OS](#511-recommended-os)
+6. [Development](#6-development)
+7. [License](#7-license)
+
+## 1. Requirements
 
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) package manager
 - RND320 / KEL103 connected via USB
 
-## Quick Start
+## 2. Quick Start
 
 ```bash
 # Clone and install
@@ -24,7 +53,7 @@ uv run rnd320-service
 
 The service starts on `http://0.0.0.0:8320` by default. Interactive API docs are available at `http://<host>:8320/docs`.
 
-## Configuration
+## 3. Configuration
 
 All configuration is done via environment variables:
 
@@ -42,23 +71,23 @@ You can set these inline, export them, or use the systemd environment file (see 
 RND320_PORT=/dev/ttyUSB0 RND320_HTTP_PORT=9000 uv run rnd320-service
 ```
 
-## API Reference
+## 4. API Reference
 
 All endpoints are under `/api/v1/`. Full interactive documentation (Swagger UI) is served at `/docs` and the OpenAPI schema at `/openapi.json`.
 
-### Health
+### 4.1 Health
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/health` | Liveness check. Returns `{"status": "ok", "device_connected": true/false}` |
 
-### Device Info
+### 4.2 Device Info
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/v1/device` | Model string, device status, and network info |
 
-### Measurements
+### 4.3 Measurements
 
 | Method | Path | Description |
 |---|---|---|
@@ -69,7 +98,7 @@ Example response:
 {"voltage": 12.05, "current": 1.503, "power": 18.12}
 ```
 
-### Input Control
+### 4.4 Input Control
 
 | Method | Path | Description |
 |---|---|---|
@@ -81,7 +110,7 @@ Example request:
 {"state": "ON"}
 ```
 
-### Setpoint
+### 4.5 Setpoint
 
 | Method | Path | Description |
 |---|---|---|
@@ -100,7 +129,7 @@ Example response:
 {"mode": "CC", "voltage": 12.0, "current": 2.0, "power": 24.0, "resistance": 6.0}
 ```
 
-### Function / Mode
+### 4.6 Function / Mode
 
 | Method | Path | Description |
 |---|---|---|
@@ -112,7 +141,7 @@ Example request:
 {"function": "constant_voltage"}
 ```
 
-### Settings
+### 4.7 Settings
 
 | Method | Path | Description |
 |---|---|---|
@@ -128,7 +157,7 @@ Settings fields:
 - **Limits**: `voltage_limit`, `current_limit`, `power_limit`, `resistance_limit`
 - **Toggles** (`"ON"` / `"OFF"`): `beep`, `lock`, `dhcp`, `trigger`, `compensation`
 
-### Battery Test
+### 4.8 Battery Test
 
 | Method | Path | Description |
 |---|---|---|
@@ -156,9 +185,9 @@ Example status response (test in progress):
 
 When the device reaches a cutoff condition it turns off the input and `running` becomes `false`.
 
-## Raspberry Pi Deployment
+## 5. Raspberry Pi Deployment
 
-### 1. Install uv and the service
+### 5.1 Install uv and the service
 
 ```bash
 # Install uv (if not already present)
@@ -171,7 +200,7 @@ cd rnd320-service
 sudo uv sync
 ```
 
-### 2. Create a service user
+### 5.2 Create a service user
 
 ```bash
 sudo useradd -r -s /sbin/nologin -G dialout rnd320
@@ -179,14 +208,14 @@ sudo useradd -r -s /sbin/nologin -G dialout rnd320
 
 The `dialout` group grants access to serial ports.
 
-### 3. Configure the environment
+### 5.3 Configure the environment
 
 ```bash
 sudo cp rnd320-service.env.example /etc/rnd320-service.env
 sudo nano /etc/rnd320-service.env
 ```
 
-### 4. Install and enable the systemd service
+### 5.4 Install and enable the systemd service
 
 Update `ExecStart` in the service file to match the installed path:
 
@@ -197,14 +226,14 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now rnd320-service
 ```
 
-### 5. Verify
+### 5.5 Verify
 
 ```bash
 sudo systemctl status rnd320-service
 curl http://localhost:8320/health
 ```
 
-### USB Device Permissions
+### 5.6 USB Device Permissions
 
 If the service cannot open the serial port, ensure the device node is accessible. You can add a udev rule for consistent naming:
 
@@ -220,7 +249,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 Set `RND320_PORT=/dev/rnd320` in your environment file to use the stable symlink.
 
-### Disable USB Autosuspend
+### 5.7 Disable USB Autosuspend
 
 Linux power management can suspend idle USB devices, which kills the serial connection. This is a common cause of the service losing contact with the device after a period of inactivity. Disable autosuspend for USB devices:
 
@@ -235,7 +264,7 @@ Alternatively, disable USB autosuspend globally via a kernel parameter. Add `usb
 ... rootwait usbcore.autosuspend=-1
 ```
 
-### Static IP Address
+### 5.8 Static IP Address
 
 A service that other machines need to reach should have a predictable address. With NetworkManager (default on recent Raspberry Pi OS):
 
@@ -257,7 +286,7 @@ static routers=192.168.1.1
 static domain_name_servers=192.168.1.1
 ```
 
-### Reducing SD Card Wear
+### 5.9 Reducing SD Card Wear
 
 A headless Pi running 24/7 can wear out an SD card through constant log writes. A few mitigations:
 
@@ -290,7 +319,7 @@ sudo journalctl --vacuum-size=50M
 # SystemMaxUse=50M
 ```
 
-### Firewall
+### 5.10 Firewall
 
 If the Pi is on a shared network, restrict access to the service port:
 
@@ -302,11 +331,11 @@ sudo ufw allow 8320/tcp
 sudo ufw enable
 ```
 
-### Recommended OS
+### 5.11 Recommended OS
 
 Raspberry Pi OS Lite (64-bit) is a good baseline — no desktop overhead, well-supported on Pi 3B. For an even leaner setup, DietPi or Alpine Linux are options, though they require more manual configuration.
 
-## Development
+## 6. Development
 
 ```bash
 # Install dependencies
@@ -319,6 +348,6 @@ uv run rnd320-service
 # http://localhost:8320/docs
 ```
 
-## License
+## 7. License
 
 MIT
