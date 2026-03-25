@@ -15,6 +15,9 @@ dependencies = [
 [project.optional-dependencies]
 mqtt = ["paho-mqtt>=2.0"]
 
+[dependency-groups]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
 [project.scripts]
 rnd320-service = "rnd320_service.main:main"
 
