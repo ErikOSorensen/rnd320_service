@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from rnd320_service.config import settings
 from rnd320_service.device import device_manager
-from rnd320_service.routes import control, device, measurements, settings as settings_routes
+from rnd320_service.routes import battery, control, device, measurements, settings as settings_routes
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,7 @@ app.include_router(device.router)
 app.include_router(measurements.router)
 app.include_router(control.router)
 app.include_router(settings_routes.router)
+app.include_router(battery.router)
 
 
 @app.get("/health", tags=["health"])

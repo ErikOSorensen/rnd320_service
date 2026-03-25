@@ -84,5 +84,31 @@ class SettingsUpdate(BaseModel):
     compensation: str | None = None
 
 
+class BatteryConfigRequest(BaseModel):
+    save_slot: int  # 1-10
+    current_range: float  # Amps
+    discharge_current: float  # Amps
+    cutoff_voltage: float  # Volts
+    cutoff_capacity: float  # AH
+    cutoff_time: float  # Minutes
+
+
+class BatteryConfigResponse(BaseModel):
+    save_slot: int
+    current_range: float
+    discharge_current: float
+    cutoff_voltage: float
+    cutoff_capacity: float
+    cutoff_time: float
+
+
+class BatteryStatusResponse(BaseModel):
+    capacity: float | None = None  # AH
+    time: float | None = None  # Minutes
+    input: str | None = None  # "ON" while running, "OFF" when done
+    function: str | None = None  # "BATTERY" while in battery test mode
+    running: bool = False  # True when input is ON and mode is battery
+
+
 class ErrorResponse(BaseModel):
     detail: str
