@@ -227,6 +227,7 @@ Set `RND320_MQTT_BROKER` to enable publishing. All other MQTT settings have sens
 
 - The `timestamp` is the UTC time when the measurement was taken. Subscribers can use this or their own receive time depending on accuracy needs.
 - If the MQTT broker is unreachable at startup, the service logs an error and continues running — the REST API is unaffected.
+- If the broker connection is lost after startup, the publisher reconnects automatically with exponential backoff (1s to 60s). No service restart is needed.
 
 ### 5.4 Example: subscribing with mosquitto
 
@@ -395,6 +396,9 @@ uv run rnd320-service
 
 # Open the interactive API docs
 # http://localhost:8320/docs
+
+# Run tests (no hardware required — uses a mocked device)
+uv run pytest tests/ -v
 ```
 
 ## 8. License
