@@ -128,6 +128,34 @@ Settings fields:
 - **Limits**: `voltage_limit`, `current_limit`, `power_limit`, `resistance_limit`
 - **Toggles** (`"ON"` / `"OFF"`): `beep`, `lock`, `dhcp`, `trigger`, `compensation`
 
+### Battery Test
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/battery/config/{slot}` | Get battery test config from slot (1-10) |
+| PUT | `/api/v1/battery/config` | Configure and activate a battery test |
+| POST | `/api/v1/battery/recall/{slot}` | Recall a previously saved battery test config |
+| GET | `/api/v1/battery/status` | Get test progress: capacity, time, and whether the test is still running |
+
+Example — configure a battery discharge test:
+```json
+{
+  "save_slot": 1,
+  "current_range": 30.0,
+  "discharge_current": 1.0,
+  "cutoff_voltage": 3.0,
+  "cutoff_capacity": 100.0,
+  "cutoff_time": 600.0
+}
+```
+
+Example status response (test in progress):
+```json
+{"capacity": 1.234, "time": 45.2, "input": "ON", "function": "BATTERY", "running": true}
+```
+
+When the device reaches a cutoff condition it turns off the input and `running` becomes `false`.
+
 ## Raspberry Pi Deployment
 
 ### 1. Install uv and the service
@@ -191,6 +219,92 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 Set `RND320_PORT=/dev/rnd320` in your environment file to use the stable symlink.
+
+### Disable USB Autosuspend
+
+Linux power management can suspend idle USB devices, which kills the serial connection. This is a common cause of the service losing contact with the device after a period of inactivity. Disable autosuspend for USB devices:
+
+```bash
+# /etc/udev/rules.d/99-rnd320.rules (add to the existing rule file)
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0416", ATTR{idProduct}=="5011", ATTR{power/autosuspend}="-1"
+```
+
+Alternatively, disable USB autosuspend globally via a kernel parameter. Add `usbcore.autosuspend=-1` to `/boot/cmdline.txt` (Raspberry Pi OS) or `/boot/firmware/cmdline.txt` (Ubuntu):
+
+```
+... rootwait usbcore.autosuspend=-1
+```
+
+### Static IP Address
+
+A service that other machines need to reach should have a predictable address. With NetworkManager (default on recent Raspberry Pi OS):
+
+```bash
+sudo nmcli con mod "Wired connection 1" \
+  ipv4.method manual \
+  ipv4.addresses 192.168.1.50/24 \
+  ipv4.gateway 192.168.1.1 \
+  ipv4.dns "192.168.1.1"
+sudo nmcli con up "Wired connection 1"
+```
+
+With `dhcpcd` (older Raspberry Pi OS), add to `/etc/dhcpcd.conf`:
+
+```
+interface eth0
+static ip_address=192.168.1.50/24
+static routers=192.168.1.1
+static domain_name_servers=192.168.1.1
+```
+
+### Reducing SD Card Wear
+
+A headless Pi running 24/7 can wear out an SD card through constant log writes. A few mitigations:
+
+```bash
+# Mount /tmp and /var/log as tmpfs (RAM-backed)
+# Add to /etc/fstab:
+tmpfs /tmp     tmpfs defaults,noatime,nosuid,nodev,size=64M 0 0
+tmpfs /var/log tmpfs defaults,noatime,nosuid,nodev,size=32M 0 0
+```
+
+Note: mounting `/var/log` as tmpfs means logs are lost on reboot. If you need persistent logs, configure log rotation instead:
+
+```bash
+# /etc/logrotate.d/rnd320-service
+/var/log/rnd320-service/*.log {
+    daily
+    rotate 3
+    compress
+    missingok
+    notifempty
+    maxsize 10M
+}
+```
+
+You can also reduce journal disk usage:
+
+```bash
+sudo journalctl --vacuum-size=50M
+# Make it permanent in /etc/systemd/journald.conf:
+# SystemMaxUse=50M
+```
+
+### Firewall
+
+If the Pi is on a shared network, restrict access to the service port:
+
+```bash
+sudo apt install ufw
+sudo ufw default deny incoming
+sudo ufw allow ssh
+sudo ufw allow 8320/tcp
+sudo ufw enable
+```
+
+### Recommended OS
+
+Raspberry Pi OS Lite (64-bit) is a good baseline — no desktop overhead, well-supported on Pi 3B. For an even leaner setup, DietPi or Alpine Linux are options, though they require more manual configuration.
 
 ## Development
 
